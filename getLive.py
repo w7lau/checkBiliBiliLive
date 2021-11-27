@@ -1,4 +1,3 @@
-import requests
 import json
 import re
 import pathlib
@@ -6,11 +5,12 @@ import configparser, os
 import time
 import win32gui
 import win32con
-
-
+import urllib.request
+from lxml import etree
+import requests
 patStr=''
 perTime='60'
-roomID='92613'
+uid='13046'
 curTitle=''
 
 class TestTaskbarIcon:
@@ -54,11 +54,14 @@ class TestTaskbarIcon:
 
 
 def get():
-    r=requests.get('https://api.live.bilibili.com/xlive/web-room/v1/index/getOffLiveList?room_id='+roomID)
-
-    rData=json.loads(r.text)
-
-    title=rData['data']['record_list'][0]['title']
+    roomUrl = 'https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids'
+    d={'uids':[uid]}
+    r=requests.post(roomUrl,json.dumps(d))
+    
+    try:
+        title=json.loads(r.text)['data'][uid]['title']
+    except:
+        return
 
     pat=(patStr)
     matchObj=re.match(pat,title)
@@ -67,6 +70,7 @@ def get():
         curTitle=title
         t = TestTaskbarIcon()
         t.showMsg("检测到直播间标题符合要求", '当前直播标题：'+title)
+        print("检测到符合的标题："+title)
 
 
 def readConfig():
@@ -78,20 +82,20 @@ def readConfig():
 
     if not os.path.exists('config.ini'):
         print('检测到无配置文件，正在生成……')
-        config['config'] = {'roomID': '92613', 'times': '60','pattern':''}
+        config['config'] = {'uid': '13046', 'times': '60','pattern':''}
         config.write(open('config.ini', 'w'))
-        print('配置文件生成成功，可以根据个人自定义修改后重新打开，roomid为房间号，times为检测的周期，单位：秒\npattern是正则表达式，例如想检测抓鬼和以撒则写：瓜|以撒')
+        print('配置文件生成成功，可以根据个人自定义修改后重新打开，uid为主播的uid，times为检测的周期，单位：秒\npattern是正则表达式，例如想检测抓鬼和以撒则写：瓜|以撒')
     else:
         try:
             config.read('config.ini')
         except:
             config.read('config.ini',encoding=encodingUser)
-        global patStr,perTime,roomID
+        global patStr,perTime,uid
 
         try:
-            roomID=config.get('config','roomID')
+            uid=config.get('config','uid')
         except configparser.NoOptionError:
-            config.set('config','roomID',str(roomID))
+            config.set('config','uid',uid)
             config.write(open('config.ini', 'w'))
 
         try:
@@ -109,9 +113,9 @@ def readConfig():
             config.write(open('config.ini', 'w'))
         
 
-
+print("简单的标题检测小程序，开源地址：https://github.com/w7lau/checkBiliBiliLive")
 readConfig()
+print("直播间标题监控中……")
 while(1):
     get()
-    print("直播间标题监控中……")
     time.sleep(int(perTime))
